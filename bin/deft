@@ -41,10 +41,30 @@ function writeFile(filePath, response, callback) {
 
 function getFiles(dependency) {
   var files = dependency[dependency.length - 1];
-  if (!(files instanceof Array)) {
-    files = [files];
+
+  if (typeof files === 'string') {
+    return stringToObject(files);
   }
+
+  if (files instanceof Array) {
+    return arrayToObject(files);
+  }
+
   return files;
+}
+
+function stringToObject(string) {
+  var object = {};
+  object[string] = string;
+  return object;
+}
+
+function arrayToObject(array) {
+  var object = {};
+  for (var i = 0; i < array.length; ++i) {
+    object[array[i]] = array[i];
+  }
+  return object;
 }
 
 function getUrl(file, dependency) {
@@ -54,16 +74,18 @@ function getUrl(file, dependency) {
 }
 
 function downloadDependency(dependency) {
+  var files = getFiles(dependency);
+
   var downloadFile = function(file) {
     https.get(getUrl(file, dependency), function(response) {
-      writeFile(file, response, function() {
+      var destinationPath = files[file];
+      writeFile(destinationPath, response, function() {
         console.log('Downloaded ' + file);
       });
     });
   };
 
-  var files = getFiles(dependency);
-  async.each(files, downloadFile, function(err) {
+  async.each(Object.keys(files), downloadFile, function(err) {
     if (err) {
       console.log('Error downloading file: ' + err);
     }
