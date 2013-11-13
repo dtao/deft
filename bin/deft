@@ -125,7 +125,7 @@ function downloadDependency(dependency) {
       });
 
     } else {
-      console.log(file + ' - already present');
+      stync.write(file + ' - already present');
     }
   };
 
