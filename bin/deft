@@ -28,12 +28,29 @@ commander
 
 var configFile   = commander.configFile || 'deft.json',
     config       = parseFile(configFile, process.cwd()),
-    destination  = config.destination || 'deft',
+    destination  = getDestination(config.destination || 'deft'),
     dependencies = config.dependencies || [];
 
-function shouldOverwrite(filePath) {
-  filePath = path.join(process.cwd(), destination, filePath);
+function getDestination(configDestination) {
+  if (typeof configDestination === 'string') {
+    return { '*': configDestination };
+  }
 
+  return configDestination;
+}
+
+function getDestinationPath(fileName) {
+  var extension = path.extname(fileName),
+      folder    = destination[extension] || destination[extension.substring(1)] || destination['*'];
+
+  if (!folder) {
+    throw 'Unsure where to save file "' + fileName + '"!';
+  }
+
+  return path.join(process.cwd(), folder, fileName);
+}
+
+function shouldOverwrite(filePath) {
   if (!(fs.existsSync || path.existsSync)(filePath)) {
     return true;
   }
@@ -42,8 +59,6 @@ function shouldOverwrite(filePath) {
 }
 
 function writeFile(filePath, response, callback) {
-  filePath = path.join(process.cwd(), destination, filePath);
-
   // Ensure destination directory exists
   mkdirp.sync(path.dirname(filePath));
 
@@ -97,10 +112,10 @@ function downloadDependency(dependency) {
   var downloadFile = function(file) {
     var fileUrl         = getUrl(file, dependency),
         httpModule      = (/^https:/).test(fileUrl) ? https : http,
-        destinationPath = files[file];
+        destinationPath = getDestinationPath(files[file]);
 
     if (shouldOverwrite(destinationPath)) {
-      var message = stync.begin('Downloading ' + destinationPath + '...');
+      var message = stync.begin('Downloading ' + file + '...');
       httpModule.get(fileUrl, function(response) {
         message.write(' received response...');
 
