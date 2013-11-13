@@ -2,6 +2,7 @@
 
 var fs        = require('fs'),
     path      = require('path'),
+    url       = require('url'),
     http      = require('http'),
     https     = require('https'),
     async     = require('async'),
@@ -68,8 +69,13 @@ function arrayToObject(array) {
 }
 
 function getUrl(file, dependency) {
+  if ((/^https?:/).test(dependency[0])) {
+    return url.resolve(dependency[0], file);
+  }
+
   var name = dependency[0],
       tag  = dependency[1];
+
   return 'https://raw.github.com/' + name + '/' + tag + '/' + file;
 }
 
@@ -77,7 +83,10 @@ function downloadDependency(dependency) {
   var files = getFiles(dependency);
 
   var downloadFile = function(file) {
-    https.get(getUrl(file, dependency), function(response) {
+    var fileUrl    = getUrl(file, dependency),
+        httpModule = (/^https:/).test(fileUrl) ? https : http;
+
+    httpModule.get(fileUrl, function(response) {
       var destinationPath = files[file];
       writeFile(destinationPath, response, function() {
         console.log('Downloaded ' + file);
