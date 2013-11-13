@@ -129,15 +129,7 @@ function downloadDependency(dependency) {
     }
   };
 
-  async.each(Object.keys(files), downloadFile, function(err) {
-    if (err) {
-      console.log('Error downloading file: ' + err);
-    }
-  });
+  async.each(Object.keys(files), downloadFile);
 }
 
-async.each(dependencies, downloadDependency, function(err) {
-  if (err) {
-    console.log('Errors were encountered: ' + err);
-  }
-});
+async.each(dependencies, downloadDependency);
