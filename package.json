@@ -1,0 +1,13 @@
+{
+  "name": "deft",
+  "description": "A dependency manager",
+  "version": "0.1.0",
+  "bin": {
+    "deft": "bin/deft"
+  },
+  "dependencies": {
+    "async": ">= 0.2.9",
+    "commander": ">= 2.0.0",
+    "mkdirp": ">= 0.3.5"
+  }
+}

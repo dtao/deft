@@ -1,0 +1,77 @@
+#!/usr/bin/env node
+
+var fs        = require('fs'),
+    path      = require('path'),
+    http      = require('http'),
+    https     = require('https'),
+    async     = require('async'),
+    commander = require('commander'),
+    mkdirp    = require('mkdirp'),
+    deftInfo  = parseFile('../package.json');
+
+function readFile(filePath, basePath) {
+  basePath = basePath || __dirname;
+  return fs.readFileSync(path.join(basePath, filePath), 'utf-8');
+}
+
+function parseFile(filePath, basePath) {
+  return JSON.parse(readFile(filePath, basePath));
+}
+
+commander
+  .version(deftInfo.version)
+  .option('-c, --config-file <path>', 'specify a config file (defaults to deft.json)')
+  .parse(process.argv);
+
+var configFile   = commander.configFile || 'deft.json',
+    config       = parseFile(configFile, process.cwd()),
+    destination  = config.destination || 'deft',
+    dependencies = config.dependencies || [];
+
+function writeFile(filePath, response, callback) {
+  filePath = path.join(process.cwd(), destination, filePath);
+
+  // Ensure destination directory exists
+  mkdirp.sync(path.dirname(filePath));
+
+  var stream = fs.createWriteStream(filePath);
+  response.pipe(stream);
+  stream.on('finish', callback);
+}
+
+function getFiles(dependency) {
+  var files = dependency[dependency.length - 1];
+  if (!(files instanceof Array)) {
+    files = [files];
+  }
+  return files;
+}
+
+function getUrl(file, dependency) {
+  var name = dependency[0],
+      tag  = dependency[1];
+  return 'https://raw.github.com/' + name + '/' + tag + '/' + file;
+}
+
+function downloadDependency(dependency) {
+  var downloadFile = function(file) {
+    https.get(getUrl(file, dependency), function(response) {
+      writeFile(file, response, function() {
+        console.log('Downloaded ' + file);
+      });
+    });
+  };
+
+  var files = getFiles(dependency);
+  async.each(files, downloadFile, function(err) {
+    if (err) {
+      console.log('Error downloading file: ' + err);
+    }
+  });
+}
+
+async.each(dependencies, downloadDependency, function(err) {
+  if (err) {
+    console.log('Errors were encountered: ' + err);
+  }
+});
