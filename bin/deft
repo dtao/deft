@@ -71,26 +71,26 @@ function getFiles(dependency) {
   var files = dependency[dependency.length - 1];
 
   if (typeof files === 'string') {
-    return stringToObject(files);
+    return filesFromString(files);
   }
 
   if (files instanceof Array) {
-    return arrayToObject(files);
+    return filesFromArray(files);
   }
 
   return files;
 }
 
-function stringToObject(string) {
+function filesFromString(string) {
   var object = {};
-  object[string] = string;
+  object[string] = path.basename(string);
   return object;
 }
 
-function arrayToObject(array) {
+function filesFromArray(array) {
   var object = {};
   for (var i = 0; i < array.length; ++i) {
-    object[array[i]] = array[i];
+    object[array[i]] = path.basename(array[i]);
   }
   return object;
 }
@@ -129,7 +129,15 @@ function downloadDependency(dependency) {
     }
   };
 
-  async.each(Object.keys(files), downloadFile);
+  async.each(Object.keys(files), downloadFile, function(err) {
+    if (err) {
+      console.log('Encountered an error: ' + err);
+    }
+  });
 }
 
-async.each(dependencies, downloadDependency);
+async.each(dependencies, downloadDependency, function(err) {
+  if (err) {
+    console.log('Encountered an error: ' + err);
+  }
+});
