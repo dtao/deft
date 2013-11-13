@@ -19,15 +19,15 @@ This isn't necessarily a bad thing. It gives library developers control over how
 
 Here's the situation I've run into, though: I'm developing an *application*, and I want to depend on libraries X, Y, and Z. Maybe X supports Bower, Y supports component, and Z supports volo. I could:
 
-1. Petition the maintains of two of these three libraries to add support for whatever system I would like to use
-2. Fork two of the three libraries and add support for whatever system I want to use
+1. Petition the maintainers of these libraries to add support for my system of choice
+2. Fork two of the three libraries and add support myself, then depend on my fork
 3. Just pull the libraries directly into my application
 
 I don't like the first option because it just feels like an uphill battle, expecting everyone to adopt Bower or component or volo.
 
-I don't like the second options because it either positions *me* as the false maintainer of a project (e.g., in Bower anyone can register any library) or forces me to use some weird fork-y name (like "dtao-libraryX" instead of "libraryX").
+I don't like the second option because it either positions *me* as the false maintainer of a project (e.g., in Bower anyone can register any library) or forces me to use some weird fork-y name (like "dtao-libraryX" instead of "libraryX"). Worse, I see that approach leading to fork proliferation in the long term. And we should all behave in such a way that society is better off... yada yada yada.
 
-As for the third option, there are obvious issues with it. For one, pulling the source code for other libraries into my code base bloats the repository. I could add them to my **.gitignore** file, but then I'm force to manually re-download them whenever I clone the repo to a new location.
+As for the third option, there are obvious issues with it. For one, pulling the source code for other libraries into my code base bloats my repository. I could add them to my **.gitignore** file, but then I'm forced to manually re-download them whenever I clone the repo to a new location.
 
 ## How deft is different
 
@@ -37,7 +37,7 @@ First, install deft:
 
     npm install -g deft
 
-Next, create a file called **deft.json** in your repository. Declare your dependencies in that file (see below), then run:
+Next, create a file called **deft.json** in repository of your application. Declare your dependencies in that file (see below), then run:
 
     deft
 
@@ -58,7 +58,7 @@ Here's an example **deft.json** file:
 
 This file declares one dependency: [Lo-Dash](https://github.com/lodash/lodash). It instructs deft to fetch from **version 2.3.0** (must be a valid git tag) the file **lodash.js**---which is specified as a path relative to the root of the repository---and save it to the "lib" directory. (If you don't specify the "destination" property, deft will create a "deft" directory and save everything there.)
 
-Every dependency is declared as an array. The first element identifies a *location*---in this example, a GitHub repository---and the last element identifies the file(s) to download. The middle tag element is optional; if absent, deft will default to fetching from the master branch (for git repos).
+Every dependency is declared as an array. (I know it's weird, but it's *concise*! Also, I think it's pretty readable.) The first element identifies a *location*---in this example, a GitHub repository---and the last element identifies the file(s) to download. The middle tag element is optional; if absent, deft will default to fetching from the master branch (for git repos).
 
 Now suppose you want to download multiple files from the same project. You can also specify an array of files:
 
