@@ -74,7 +74,7 @@ function getUrl(file, dependency) {
   }
 
   var name = dependency[0],
-      tag  = dependency[1];
+      tag  = dependency.length > 2 ? dependency[1] : 'master';
 
   return 'https://raw.github.com/' + name + '/' + tag + '/' + file;
 }
