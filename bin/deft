@@ -8,6 +8,7 @@ var fs        = require('fs'),
     async     = require('async'),
     commander = require('commander'),
     mkdirp    = require('mkdirp'),
+    stync     = require('stync'),
     deftInfo  = parseFile('../package.json');
 
 function readFile(filePath, basePath) {
@@ -22,12 +23,23 @@ function parseFile(filePath, basePath) {
 commander
   .version(deftInfo.version)
   .option('-c, --config-file <path>', 'specify a config file (defaults to deft.json)')
+  .option('-f, --force', 'overwrite files that are already present')
   .parse(process.argv);
 
 var configFile   = commander.configFile || 'deft.json',
     config       = parseFile(configFile, process.cwd()),
     destination  = config.destination || 'deft',
     dependencies = config.dependencies || [];
+
+function shouldOverwrite(filePath) {
+  filePath = path.join(process.cwd(), destination, filePath);
+
+  if (!(fs.existsSync || path.existsSync)(filePath)) {
+    return true;
+  }
+
+  return commander.force;
+}
 
 function writeFile(filePath, response, callback) {
   filePath = path.join(process.cwd(), destination, filePath);
@@ -83,15 +95,23 @@ function downloadDependency(dependency) {
   var files = getFiles(dependency);
 
   var downloadFile = function(file) {
-    var fileUrl    = getUrl(file, dependency),
-        httpModule = (/^https:/).test(fileUrl) ? https : http;
+    var fileUrl         = getUrl(file, dependency),
+        httpModule      = (/^https:/).test(fileUrl) ? https : http,
+        destinationPath = files[file];
 
-    httpModule.get(fileUrl, function(response) {
-      var destinationPath = files[file];
-      writeFile(destinationPath, response, function() {
-        console.log('Downloaded ' + file);
+    if (shouldOverwrite(destinationPath)) {
+      var message = stync.begin('Downloading ' + destinationPath + '...');
+      httpModule.get(fileUrl, function(response) {
+        message.write(' received response...');
+
+        writeFile(destinationPath, response, function() {
+          message.end(' Done.');
+        });
       });
-    });
+
+    } else {
+      console.log(file + ' - already present');
+    }
   };
 
   async.each(Object.keys(files), downloadFile, function(err) {
