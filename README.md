@@ -84,6 +84,20 @@ You can also depend on files located at arbitrary URLs. Here's an example:
 
 The above dependency instructs deft to download the file at **http://code.jquery.com/jquery-1.10.1.js** and save it to **jquery.js**.
 
+Suppose the sweet source code you seek is locked away in an archive. No problem! Tell deft to extract the contents you want like so:
+
+```json
+["http://code.angularjs.org/1.2.5/angular-1.2.5.zip", {
+  "archive": {
+    "type": "zip",
+    "files": [
+      "angular-1.2.5/angular.js",
+      "angular-1.2.5/angular.min.js"
+    ]
+  }
+}]
+```
+
 By default, deft will not download files that are already present. You can force it to (e.g., if you've updated the versions you're depending on) using the `--force` option:
 
     deft --force

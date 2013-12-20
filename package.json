@@ -1,7 +1,7 @@
 {
   "name": "deft",
   "description": "A dependency declaration system",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "repository": "https://github.com/dtao/deft",
   "bin": {
     "deft": "bin/deft"
