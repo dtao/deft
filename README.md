@@ -37,7 +37,7 @@ First, install deft:
 
     npm install -g deft
 
-Next, create a file called **deft.json** in repository of your application. Declare your dependencies in that file (see below), then run:
+Next, create a file called **deft.json** in the repository of your application. Declare your dependencies in that file (see below), then run:
 
     deft
 
