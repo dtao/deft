@@ -1,1 +1,5 @@
 node_modules/
+
+# Ignore these, which I might happen to use for testing
+deft.json
+deft/
