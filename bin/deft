@@ -54,8 +54,12 @@ function getDestinationPath(fileName) {
   return path.join(process.cwd(), folder, fileName);
 }
 
+function pathExists(path) {
+  return (fs.existsSync || path.existsSync)(path);
+}
+
 function shouldOverwrite(filePath) {
-  if (!(fs.existsSync || path.existsSync)(filePath)) {
+  if (!pathExists(filePath)) {
     return true;
   }
 
@@ -84,7 +88,7 @@ function getTempFileName(extension) {
 
   do {
     fileName = 'temp' + randomNumber() + '.' + extension;
-  } while (fs.existsSync(fileName));
+  } while (pathExists(fileName));
 
   tempFiles.push(fileName);
 
@@ -96,7 +100,7 @@ function getTempDirName() {
 
   do {
     dirName = 'tmp' + randomNumber();
-  } while (fs.existsSync(dirName));
+  } while (pathExists(dirName));
 
   tempDirs.push(dirName);
 
@@ -104,7 +108,7 @@ function getTempDirName() {
 }
 
 function waitForDirToExist(path, callback) {
-  if (fs.existsSync(path)) {
+  if (pathExists(path)) {
     callback();
     return;
   }
