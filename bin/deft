@@ -9,6 +9,7 @@ var fs        = require('fs'),
     commander = require('commander'),
     exec      = require('child_process').exec,
     mkdirp    = require('mkdirp'),
+    rimraf    = require('rimraf'),
     stync     = require('stync'),
     deftInfo  = parseFile('../package.json');
 
@@ -30,7 +31,9 @@ commander
 var configFile   = commander.configFile || 'deft.json',
     config       = parseFile(configFile, process.cwd()),
     destination  = getDestination(config.destination || 'deft'),
-    dependencies = config.dependencies || [];
+    dependencies = config.dependencies || [],
+    tempFiles    = [],
+    tempDirs     = [];
 
 function getDestination(configDestination) {
   if (typeof configDestination === 'string') {
@@ -83,6 +86,8 @@ function getTempFileName(extension) {
     fileName = 'temp' + randomNumber() + '.' + extension;
   } while (fs.existsSync(fileName));
 
+  tempFiles.push(fileName);
+
   return fileName;
 }
 
@@ -92,6 +97,8 @@ function getTempDirName() {
   do {
     dirName = 'tmp' + randomNumber();
   } while (fs.existsSync(dirName));
+
+  tempDirs.push(dirName);
 
   return dirName;
 }
@@ -105,6 +112,10 @@ function waitForDirToExist(path, callback) {
   setTimeout(function() {
     waitForDirToExist(path, callback);
   }, 250);
+}
+
+function getFilesFromDependency(dependency) {
+  return getFiles(dependency[dependency.length - 1]);
 }
 
 function getFiles(files) {
@@ -148,6 +159,10 @@ function getHttpModule(url) {
   return (/^https:/).test(url) ? https : http;
 }
 
+function isArchiveDependency(dependency) {
+  return describesArchive(getFilesFromDependency(dependency));
+}
+
 function describesArchive(files) {
   var keys = Object.keys(files);
   return keys.length === 1 && keys[0] === 'archive' && typeof files.archive === 'object';
@@ -160,8 +175,9 @@ function extractCommand(fileType) {
   }
 }
 
-function downloadArchive(archive, dependency) {
-  var url        = dependency[0],
+function downloadArchive(dependency, callback) {
+  var archive    = getFilesFromDependency(dependency).archive,
+      url        = dependency[0],
       type       = archive.type || 'zip',
       files      = getFiles(archive.files),
       httpModule = getHttpModule(url);
@@ -187,8 +203,7 @@ function downloadArchive(archive, dependency) {
 
       exec(command, function(err) {
         if (err) {
-          message.end(' error! ' + err);
-          return;
+          return callback(err);
         }
 
         message.end(' Done.');
@@ -198,19 +213,16 @@ function downloadArchive(archive, dependency) {
             stync.write('Copying ' + file + '...');
             copyFile(path.join(tempDir, file), getDestinationPath(files[file]));
           }
+
+          callback();
         });
       });
     });
   });
 }
 
-function downloadDependency(dependency) {
+function downloadDependency(dependency, callback) {
   var files = getFiles(dependency[dependency.length - 1]);
-
-  if (describesArchive(files)) {
-    downloadArchive(files.archive, dependency);
-    return;
-  }
 
   var retrieveFile = function(file) {
     var fileUrl         = getUrl(file, dependency),
@@ -234,13 +246,36 @@ function downloadDependency(dependency) {
 
   async.each(Object.keys(files), retrieveFile, function(err) {
     if (err) {
-      console.log('Encountered an error: ' + err);
+      return callback(err);
     }
+
+    callback();
   });
 }
+
+function not(fn) {
+  return function() {
+    return !fn.apply(this, arguments);
+  };
+}
+
+var archives = dependencies.filter(isArchiveDependency);
+
+dependencies = dependencies.filter(not(isArchiveDependency));
 
 async.each(dependencies, downloadDependency, function(err) {
   if (err) {
     console.log('Encountered an error: ' + err);
   }
+});
+
+async.eachSeries(archives, downloadArchive, function(err) {
+  if (err) {
+    console.log('Encountered an error: ' + err);
+  }
+
+  var message = stync.begin('Cleaning up archive downloads...');
+  tempFiles.forEach(function(file) { fs.unlinkSync(file); });
+  tempDirs.forEach(function(dir) { rimraf.sync(dir); });
+  message.end('Done.');
 });
