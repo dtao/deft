@@ -7,6 +7,7 @@ var fs        = require('fs'),
     https     = require('https'),
     async     = require('async'),
     commander = require('commander'),
+    exec      = require('child_process').exec,
     mkdirp    = require('mkdirp'),
     stync     = require('stync'),
     deftInfo  = parseFile('../package.json');
@@ -67,9 +68,46 @@ function writeFile(filePath, response, callback) {
   stream.on('finish', callback);
 }
 
-function getFiles(dependency) {
-  var files = dependency[dependency.length - 1];
+function copyFile(source, destination) {
+  fs.createReadStream(source).pipe(fs.createWriteStream(destination));
+}
 
+function randomNumber() {
+  return Math.floor(Math.random() * 1000000);
+}
+
+function getTempFileName(extension) {
+  var fileName;
+
+  do {
+    fileName = 'temp' + randomNumber() + '.' + extension;
+  } while (fs.existsSync(fileName));
+
+  return fileName;
+}
+
+function getTempDirName() {
+  var dirName;
+
+  do {
+    dirName = 'tmp' + randomNumber();
+  } while (fs.existsSync(dirName));
+
+  return dirName;
+}
+
+function waitForDirToExist(path, callback) {
+  if (fs.existsSync(path)) {
+    callback();
+    return;
+  }
+
+  setTimeout(function() {
+    waitForDirToExist(path, callback);
+  }, 250);
+}
+
+function getFiles(files) {
   if (typeof files === 'string') {
     return filesFromString(files);
   }
@@ -106,12 +144,77 @@ function getUrl(file, dependency) {
   return 'https://raw.github.com/' + name + '/' + tag + '/' + file;
 }
 
-function downloadDependency(dependency) {
-  var files = getFiles(dependency);
+function getHttpModule(url) {
+  return (/^https:/).test(url) ? https : http;
+}
 
-  var downloadFile = function(file) {
+function describesArchive(files) {
+  var keys = Object.keys(files);
+  return keys.length === 1 && keys[0] === 'archive' && typeof files.archive === 'object';
+}
+
+function extractCommand(fileType) {
+  switch (fileType) {
+    case 'zip': return 'unzip';
+    default: throw 'Unrecognized file type: ' + fileType;
+  }
+}
+
+function downloadArchive(archive, dependency) {
+  var url        = dependency[0],
+      type       = archive.type || 'zip',
+      files      = getFiles(archive.files),
+      httpModule = getHttpModule(url);
+
+  var message = stync.begin('Downloading ' + url + '...');
+  httpModule.get(url, function(response) {
+    var fileName   = getTempFileName(type),
+        tempDir    = getTempDirName(),
+        fileStream = fs.createWriteStream(fileName);
+
+    message.write(' received response; saving to disk...');
+    response.pipe(fileStream);
+
+    response.on('end', function() {
+      message.write(' extracting file...');
+
+      var command = [
+        extractCommand(type),
+        fileName,
+        Object.keys(files).join(' '),
+        '-d ' + tempDir
+      ].join(' ');
+
+      exec(command, function(err) {
+        if (err) {
+          message.end(' error! ' + err);
+          return;
+        }
+
+        message.end(' Done.');
+
+        waitForDirToExist(tempDir, function() {
+          for (file in files) {
+            stync.write('Copying ' + file + '...');
+            copyFile(path.join(tempDir, file), getDestinationPath(files[file]));
+          }
+        });
+      });
+    });
+  });
+}
+
+function downloadDependency(dependency) {
+  var files = getFiles(dependency[dependency.length - 1]);
+
+  if (describesArchive(files)) {
+    downloadArchive(files.archive, dependency);
+    return;
+  }
+
+  var retrieveFile = function(file) {
     var fileUrl         = getUrl(file, dependency),
-        httpModule      = (/^https:/).test(fileUrl) ? https : http,
+        httpModule      = getHttpModule(fileUrl),
         destinationPath = getDestinationPath(files[file]);
 
     if (shouldOverwrite(destinationPath)) {
@@ -129,7 +232,7 @@ function downloadDependency(dependency) {
     }
   };
 
-  async.each(Object.keys(files), downloadFile, function(err) {
+  async.each(Object.keys(files), retrieveFile, function(err) {
     if (err) {
       console.log('Encountered an error: ' + err);
     }
