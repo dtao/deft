@@ -307,19 +307,27 @@ var archives = dependencies.filter(isArchiveDependency);
 
 dependencies = dependencies.filter(not(isArchiveDependency));
 
-async.each(dependencies, downloadDependency, function(err) {
-  if (err) {
-    console.log('Encountered an error: ' + err);
-  }
-});
+if (dependencies.length > 0) {
+  async.each(dependencies, downloadDependency, function(err) {
+    if (err) {
+      console.log('Encountered an error: ' + err);
+    }
+  });
+}
 
-async.eachSeries(archives, downloadArchive, function(err) {
-  if (err) {
-    console.log('Encountered an error: ' + err);
-  }
+if (archives.length > 0) {
+  async.eachSeries(archives, downloadArchive, function(err) {
+    if (err) {
+      console.log('Encountered an error: ' + err);
+    }
 
-  var message = stync.begin('Cleaning up archive downloads...');
-  tempFiles.forEach(function(file) { fs.unlinkSync(file); });
-  tempDirs.forEach(function(dir) { rimraf.sync(dir); });
-  message.end('Done.');
-});
+    if (tempFiles.length === 0 && tempDirs.length === 0) {
+      return;
+    }
+
+    var message = stync.begin('Cleaning up archive downloads...');
+    tempFiles.forEach(function(file) { fs.unlinkSync(file); });
+    tempDirs.forEach(function(dir) { rimraf.sync(dir); });
+    message.end('Done.');
+  });
+}
