@@ -160,7 +160,7 @@ function getUrl(file, dependency) {
   var name = dependency[0],
       tag  = dependency.length > 2 ? dependency[1] : 'master';
 
-  return 'https://raw.github.com/' + name + '/' + tag + '/' + file;
+  return 'https://raw.githubusercontent.com/' + name + '/' + tag + '/' + file;
 }
 
 function getHttpModule(url) {
