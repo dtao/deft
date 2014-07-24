@@ -123,53 +123,12 @@ function clipFileName(fileName) {
   return deft.clip(fileName, 40);
 }
 
-function getFilesFromDependency(dependency) {
-  return getFiles(dependency[dependency.length - 1]);
-}
-
-function getFiles(files) {
-  if (typeof files === 'string') {
-    return filesFromString(files);
-  }
-
-  if (files instanceof Array) {
-    return filesFromArray(files);
-  }
-
-  return files;
-}
-
-function filesFromString(string) {
-  var object = {};
-  object[string] = path.basename(string);
-  return object;
-}
-
-function filesFromArray(array) {
-  var object = {};
-  for (var i = 0; i < array.length; ++i) {
-    object[array[i]] = path.basename(array[i]);
-  }
-  return object;
-}
-
-function getUrl(file, dependency) {
-  if ((/^https?:/).test(dependency[0])) {
-    return url.resolve(dependency[0], file);
-  }
-
-  var name = dependency[0],
-      tag  = dependency.length > 2 ? dependency[1] : 'master';
-
-  return 'https://raw.githubusercontent.com/' + name + '/' + tag + '/' + file;
-}
-
 function getHttpModule(url) {
   return (/^https:/).test(url) ? https : http;
 }
 
 function isArchiveDependency(dependency) {
-  return describesArchive(getFilesFromDependency(dependency));
+  return describesArchive(deft.getFilesFromDependency(dependency));
 }
 
 function describesArchive(files) {
@@ -185,10 +144,10 @@ function extractCommand(fileType) {
 }
 
 function downloadArchive(dependency, callback) {
-  var archive    = getFilesFromDependency(dependency).archive,
+  var archive    = deft.getFilesFromDependency(dependency).archive,
       url        = dependency[0],
       type       = archive.type || 'zip',
-      files      = getFiles(archive.files),
+      files      = deft.getFiles(archive.files),
       httpModule = getHttpModule(url);
 
   var sampleFile = getDestinationPath(files[Object.keys(files)[0]]);
@@ -237,10 +196,10 @@ function downloadArchive(dependency, callback) {
 }
 
 function downloadDependency(dependency, callback) {
-  var files = getFiles(dependency[dependency.length - 1]);
+  var files = deft.getFiles(dependency[dependency.length - 1]);
 
   var retrieveFile = function(file) {
-    var fileUrl         = getUrl(file, dependency),
+    var fileUrl         = deft.getUrl(file, dependency),
         httpModule      = getHttpModule(fileUrl),
         destinationPath = getDestinationPath(files[file]);
 
