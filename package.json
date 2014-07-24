@@ -7,7 +7,7 @@
     "deft": "bin/deft"
   },
   "scripts": {
-    "test": "autodoc -t deft.js"
+    "test": "autodoc -t --variable=deft deft.js"
   },
   "dependencies": {
     "async": ">= 0.2.9",
