@@ -3,7 +3,8 @@
  */
 
 var deft = {},
-    path = require('path');
+    path = require('path'),
+    url = require('url');
 
 /**
  * Gets the required files (as a mapping from source to destination name) from a
