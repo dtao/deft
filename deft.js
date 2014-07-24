@@ -103,9 +103,17 @@ deft.filesFromArray = function filesFromArray(array) {
  *
  * deft.getUrl('underscore.js', ['jashkenas/underscore', '1.6.0', 'underscore.js']);
  * // => 'https://raw.githubusercontent.com/jashkenas/underscore/1.6.0/underscore.js'
+ *
+ * deft.getUrl('underscore.js', ['http://cdnjs.com/libraries/', 'underscore.js']);
+ * // => 'http://cdnjs.com/libraries/underscore.js'
+ *
+ * deft.getUrl('underscore.js', ['http://cdnjs.com/libraries', 'underscore.js']);
+ * // => 'http://cdnjs.com/libraries/underscore.js'
  */
 deft.getUrl = function getUrl(file, dependency) {
   if ((/^https?:/).test(dependency[0])) {
+    if (!endsWith(dependency[0], '/'))
+      dependency[0] += '/';
     return url.resolve(dependency[0], file);
   }
 
@@ -162,6 +170,21 @@ function clip(str, length) {
 
   return str.substring(0, length - 3) + '...';
 }
+
+
+/**
+ * Checks if a string ends with a given suffix.
+ *
+ * @private
+ * @examples
+ * endsWith('foo', 'o');     // => true
+ * endsWith('bar', 'a');     // => false
+ * endsWith('baz', 'az');    // => true
+ * endsWith('blah', 'blah'); // => true
+ */
+function endsWith(string, suffix) {
+  return string.indexOf(suffix, string.length - suffix.length) !== -1;
+};
 
 
 module.exports = deft;
