@@ -12,7 +12,7 @@ var deft = {},
  * @param {!Array.<string>} dependency
  * @return {!Object.<string, string>}
  *
- * @example
+ * @examples
  * deft.getFilesFromDependency(['foo/bar', 'baz.js']); // => { 'baz.js': 'baz.js' }
  * deft.getFilesFromDependency(['foo/bar', '1.1', 'baz.min.js']); // => { 'baz.min.js': 'baz.min.js' }
  */
@@ -33,6 +33,10 @@ deft.getFilesFromDependency = function getFilesFromDependency(dependency) {
  *
  * @param {string|!Array.<string>|!Object.<string, string>} files
  * @return {!Object.<string, string>}
+ *
+ * @examples
+ * deft.getFiles('foo.js'); // => { 'foo.js': 'foo.js' }
+ * deft.getFiles(['foo.js', 'bar.js']); // => { 'foo.js': 'foo.js', 'bar.js': 'bar.js' }
  */
 deft.getFiles = function getFiles(files) {
   if (typeof files === 'string') {
@@ -54,7 +58,7 @@ deft.getFiles = function getFiles(files) {
  * @param {string} string
  * @return {!Object.<string, string>}
  *
- * @examples
+ * @example
  * deft.filesFromString('foo.js'); // => { 'foo.js': 'foo.js' }
  */
 deft.filesFromString = function filesFromString(string) {
@@ -72,7 +76,7 @@ deft.filesFromString = function filesFromString(string) {
  * @param {!Array.<string>} array
  * @return {!Object.<string, string>}
  *
- * @examples
+ * @example
  * deft.filesFromArray(['foo.js', 'bar.js']); // => { 'foo.js': 'foo.js', 'bar.js': 'bar.js' }
  */
 deft.filesFromArray = function filesFromArray(array) {
@@ -85,12 +89,19 @@ deft.filesFromArray = function filesFromArray(array) {
 
 
 /**
- * Given the name of a file and the {@link Dependency} it comes from, gets
- * the URL used to download the file.
+ * Given the name of a file and the dependency it comes from, gets the URL used
+ * to download the file.
  *
  * @param {string} file
- * @param {!Dependency} dependency
+ * @param {!Array.<string>} dependency
  * @return {string}
+ *
+ * @examples
+ * deft.getUrl('lodash.js', ['lodash/lodash', 'lodash.js']);
+ * // => 'https://raw.githubusercontent.com/lodash/lodash/master/lodash.js'
+ *
+ * deft.getUrl('underscore.js', ['jashkenas/underscore', '1.6.0', 'underscore.js']);
+ * // => 'https://raw.githubusercontent.com/jashkenas/underscore/1.6.0/underscore.js'
  */
 deft.getUrl = function getUrl(file, dependency) {
   if ((/^https?:/).test(dependency[0])) {
@@ -105,7 +116,18 @@ deft.getUrl = function getUrl(file, dependency) {
 
 
 /**
- * Clips a string to a given maximum length.
+ * Clips a file name to 40 characters or less.
+ *
+ * @param {string} fileName
+ * @return {string}
+ */
+deft.clipFileName = function clipFileName(fileName) {
+  return deft.clip(fileName, 40);
+};
+
+
+/**
+ * Clips a string to a given maximum length (adds an ellipsis when clipping).
  *
  * @examples
  * deft.clip('hello', 10); // => 'hello'

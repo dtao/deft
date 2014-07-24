@@ -119,10 +119,6 @@ function waitForDirToExist(path, callback) {
   }, 250);
 }
 
-function clipFileName(fileName) {
-  return deft.clip(fileName, 40);
-}
-
 function getHttpModule(url) {
   return (/^https:/).test(url) ? https : http;
 }
@@ -152,11 +148,11 @@ function downloadArchive(dependency, callback) {
 
   var sampleFile = getDestinationPath(files[Object.keys(files)[0]]);
   if (!shouldOverwrite(sampleFile)) {
-    stync.write(clipFileName(url) + ' - already present.');
+    stync.write(deft.clipFileName(url) + ' - already present.');
     return callback();
   }
 
-  var message = stync.begin('Downloading ' + clipFileName(url) + '...');
+  var message = stync.begin('Downloading ' + deft.clipFileName(url) + '...');
   httpModule.get(url, function(response) {
     var fileName   = getTempFileName(type),
         tempDir    = getTempDirName(),
@@ -204,7 +200,7 @@ function downloadDependency(dependency, callback) {
         destinationPath = getDestinationPath(files[file]);
 
     if (shouldOverwrite(destinationPath)) {
-      var message = stync.begin('Downloading ' + clipFileName(file) + '...');
+      var message = stync.begin('Downloading ' + deft.clipFileName(file) + '...');
       httpModule.get(fileUrl, function(response) {
         message.write(' received response...');
 
@@ -214,7 +210,7 @@ function downloadDependency(dependency, callback) {
       });
 
     } else {
-      stync.write(clipFileName(file) + ' - already present');
+      stync.write(deft.clipFileName(file) + ' - already present');
     }
   };
 
