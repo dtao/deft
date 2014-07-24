@@ -122,26 +122,7 @@ deft.getUrl = function getUrl(file, dependency) {
  * @return {string}
  */
 deft.clipFileName = function clipFileName(fileName) {
-  return deft.clip(fileName, 40);
-};
-
-
-/**
- * Clips a string to a given maximum length (adds an ellipsis when clipping).
- *
- * @examples
- * deft.clip('hello', 10); // => 'hello'
- * deft.clip('hello', 4);  // => 'h...'
- * deft.clip('hello', -1); // => '...'
- */
-deft.clip = function clip(str, length) {
-  length = Math.max(length, 3);
-
-  if (str.length <= length) {
-    return str;
-  }
-
-  return str.substring(0, length - 3) + '...';
+  return clip(fileName, 40);
 };
 
 
@@ -160,5 +141,26 @@ deft.not = function not(fn) {
     return !fn.apply(this, arguments);
   };
 };
+
+
+/**
+ * Clips a string to a given maximum length (adds an ellipsis when clipping).
+ *
+ * @private
+ * @examples
+ * clip('hello', 10); // => 'hello'
+ * clip('hello', 4);  // => 'h...'
+ * clip('hello', -1); // => '...'
+ */
+function clip(str, length) {
+  length = Math.max(length, 3);
+
+  if (str.length <= length) {
+    return str;
+  }
+
+  return str.substring(0, length - 3) + '...';
+}
+
 
 module.exports = deft;
