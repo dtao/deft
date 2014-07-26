@@ -2,8 +2,7 @@
 
 var fs        = require('fs'),
     path      = require('path'),
-    http      = require('http'),
-    https     = require('https'),
+    request   = require('request'),
     async     = require('async'),
     commander = require('commander'),
     exec      = require('child_process').exec,
@@ -118,10 +117,6 @@ function waitForDirToExist(path, callback) {
   }, 250);
 }
 
-function getHttpModule(url) {
-  return (/^https:/).test(url) ? https : http;
-}
-
 function isArchiveDependency(dependency) {
   return describesArchive(deft.getFilesFromDependency(dependency));
 }
@@ -142,8 +137,7 @@ function downloadArchive(dependency, callback) {
   var archive    = deft.getFilesFromDependency(dependency).archive,
       url        = dependency[0],
       type       = archive.type || 'zip',
-      files      = deft.getFiles(archive.files),
-      httpModule = getHttpModule(url);
+      files      = deft.getFiles(archive.files);
 
   var sampleFile = getDestinationPath(files[Object.keys(files)[0]]);
   if (!shouldOverwrite(sampleFile)) {
@@ -152,39 +146,37 @@ function downloadArchive(dependency, callback) {
   }
 
   var message = stync.begin('Downloading ' + deft.clipFileName(url) + '...');
-  httpModule.get(url, function(response) {
-    var fileName   = getTempFileName(type),
-        tempDir    = getTempDirName(),
-        fileStream = fs.createWriteStream(fileName);
+  var fileName   = getTempFileName(type),
+      tempDir    = getTempDirName(),
+      fileStream = fs.createWriteStream(fileName),
+      response   = request(url);
 
-    message.write(' received response; saving to disk...');
-    response.pipe(fileStream);
+  response.pipe(fileStream);
 
-    response.on('end', function() {
-      message.write(' extracting file...');
+  response.on('end', function() {
+    message.write(' extracting file...');
 
-      var command = [
-        extractCommand(type),
-        fileName,
-        Object.keys(files).join(' '),
-        '-d ' + tempDir
-      ].join(' ');
+    var command = [
+      extractCommand(type),
+      fileName,
+      Object.keys(files).join(' '),
+      '-d ' + tempDir
+    ].join(' ');
 
-      exec(command, function(err) {
-        if (err) {
-          return callback(err);
+    exec(command, function(err) {
+      if (err) {
+        return callback(err);
+      }
+
+      message.end(' Done.');
+
+      waitForDirToExist(tempDir, function() {
+        for (var file in files) {
+          stync.write('Copying ' + file + '...');
+          copyFile(path.join(tempDir, file), getDestinationPath(files[file]));
         }
 
-        message.end(' Done.');
-
-        waitForDirToExist(tempDir, function() {
-          for (file in files) {
-            stync.write('Copying ' + file + '...');
-            copyFile(path.join(tempDir, file), getDestinationPath(files[file]));
-          }
-
-          callback();
-        });
+        callback();
       });
     });
   });
@@ -195,17 +187,12 @@ function downloadDependency(dependency, callback) {
 
   var retrieveFile = function(file) {
     var fileUrl         = deft.getUrl(file, dependency),
-        httpModule      = getHttpModule(fileUrl),
         destinationPath = getDestinationPath(files[file]);
 
     if (shouldOverwrite(destinationPath)) {
       var message = stync.begin('Downloading ' + deft.clipFileName(file) + '...');
-      httpModule.get(fileUrl, function(response) {
-        message.write(' received response...');
-
-        writeFile(destinationPath, response, function() {
-          message.end(' Done.');
-        });
+      writeFile(destinationPath, request(fileUrl), function() {
+        message.end(' Done.');
       });
 
     } else {
