@@ -123,6 +123,53 @@ deft.getUrl = function getUrl(file, dependency) {
   return 'https://raw.githubusercontent.com/' + name + '/' + tag + '/' + file;
 };
 
+/**
+ * Given a dependency, gets the Github API url to list tags of the project.
+ * 
+ * @param {!Array.<string>} dependency
+ * @return {string}
+ * 
+ * @examples
+ * deft.getTagsUrl(['lodash/lodash', 'lodash.js']);
+ * // => 'https://api.github.com/repos/lodash/lodash/tags'
+ *
+ * deft.getTagsUrl(['jashkenas/underscore', '1.6.0', 'underscore.js']);
+ * // => 'https://api.github.com/repos/jashkenas/underscore/tags'
+ *
+ * deft.getTagsUrl(['http://cdnjs.com/libraries/', 'underscore.js']);
+ * // => undefined
+ *
+ * deft.getTagsUrl(['http://cdnjs.com/libraries', 'underscore.js']);
+ * // => undefined
+ */
+deft.getTagsUrl = function getTagsUrl(dependency) {
+  if (!(/^https?:/).test(dependency[0])) {
+    return 'https://api.github.com/repos/' + dependency[0] + '/tags';
+  }
+}
+
+/**
+ * Given a dependency, gets the tag specified by the configuration.
+ * 
+ * @param {!Array.<string>} dependency
+ * @return {string}
+ * 
+ * @examples
+ * deft.getWantedTag(['lodash/lodash', 'lodash.js']);
+ * // => undefined
+ *
+ * deft.getWantedTag(['jashkenas/underscore', '1.6.0', 'underscore.js']);
+ * // => '1.6.0'
+ *
+ * deft.getWantedTag(['http://cdnjs.com/libraries/', 'underscore.js']);
+ * // => undefined
+ *
+ * deft.getWantedTag(['http://cdnjs.com/libraries', 'underscore.js']);
+ * // => undefined
+ */
+deft.getWantedTag = function getWantedTag(dependency) {
+  return dependency.length > 2 ? dependency[1] : null;
+}
 
 /**
  * Clips a file name to 40 characters or less.
