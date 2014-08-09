@@ -26,7 +26,7 @@ commander
   .version(deftInfo.version)
   .option('-c, --config-file <path>', 'specify a config file (defaults to deft.json)')
   .option('-f, --force', 'overwrite files that are already present')
-  .option('-o, --outdated', 'look up for outdated version (only possible on dependencies using tags)')
+  .option('-o, --outdated', 'check for outdated dependencies (only for dependencies using tags)')
   .parse(process.argv);
 
 var configFile   = commander.configFile || 'deft.json',
@@ -147,12 +147,12 @@ function downloadArchive(dependency, callback) {
     return callback();
   }
 
-  var message = stync.begin('Downloading ' + deft.clipFileName(url) + '...');
   var fileName   = getTempFileName(type),
       tempDir    = getTempDirName(),
       fileStream = fs.createWriteStream(fileName),
       response   = request(url);
 
+  var message = stync.begin('Downloading ' + deft.clipFileName(url) + '...');
   response.pipe(fileStream);
 
   response.on('end', function() {
@@ -211,14 +211,14 @@ function downloadDependency(dependency, callback) {
   });
 }
 
-function checkUpdate(dependency, callback) {
+function checkUpToDate(dependency, callback) {
   var url = deft.getTagsUrl(dependency),
       tag = deft.getWantedTag(dependency);
-      
+
   if (!url || !tag) {
-    return callback();
+    return callback(true);
   }
-  
+
   var query = {
     url: url,
     json: true,
@@ -226,20 +226,31 @@ function checkUpdate(dependency, callback) {
       'User-Agent': 'Deft'
     }
   };
-  request(query, function (err, response, body) {
+
+  var message = stync.begin('Checking ' + dependency[0] + '...');
+  request(query, function(err, response, body) {
     if (err) {
-      return callback(err);
+      message.end(err);
+      return callback(false);
     }
-    
-    var versions = body.map(function (version) {
-      return version.name;
-    }).filter(semver.valid).sort(semver.rcompare);
-    
+
+    if (body.message) {
+      message.end(' ' + body.message);
+      return callback(false);
+    }
+
+    var versions = body
+      .map(function (version) { return version.name; })
+      .filter(semver.valid)
+      .sort(semver.rcompare);
+
     if (versions[0] !== tag) {
-      console.log('%s has a newer version "%s" (current "%s")', dependency[0], versions[0], tag);
+      message.end('\x1B[33m newer version available: "' + versions[0] + '" (current "' + tag + '")\x1B[39m');
+      return callback(false);
     }
-    
-    callback();
+
+    message.end('\x1B[32m OK!\x1B[39m');
+    callback(true);
   });
 }
 
@@ -249,12 +260,13 @@ dependencies = dependencies.filter(deft.not(isArchiveDependency));
 
 if (commander.outdated) {
   if (dependencies.length > 0) {
-    async.each(dependencies, checkUpdate, function(err) {
-      if (err) {
-        console.log('Encountered an error: ' + err);
+    async.every(dependencies, checkUpToDate, function(allUpToDate) {
+      if (allUpToDate) {
+        console.log('All declared dependencies up to date.');
       }
     });
   }
+
 } else {
   if (dependencies.length > 0) {
     async.each(dependencies, downloadDependency, function(err) {
