@@ -2,9 +2,10 @@
  * Deft: a JavaScript dependency declaration system.
  */
 
-var deft = {},
-    path = require('path'),
-    url = require('url');
+var deft   = {},
+    path   = require('path'),
+    semver = require('semver'),
+    url    = require('url');
 
 /**
  * Gets the required files (as a mapping from source to destination name) from a
@@ -123,6 +124,7 @@ deft.getUrl = function getUrl(file, dependency) {
   return 'https://raw.githubusercontent.com/' + name + '/' + tag + '/' + file;
 };
 
+
 /**
  * Given a dependency, gets the Github API url to list tags of the project.
  * 
@@ -146,7 +148,8 @@ deft.getTagsUrl = function getTagsUrl(dependency) {
   if (!(/^https?:/).test(dependency[0])) {
     return 'https://api.github.com/repos/' + dependency[0] + '/tags';
   }
-}
+};
+
 
 /**
  * Given a dependency, gets the tag specified by the configuration.
@@ -169,7 +172,34 @@ deft.getTagsUrl = function getTagsUrl(dependency) {
  */
 deft.getWantedTag = function getWantedTag(dependency) {
   return dependency.length > 2 ? dependency[1] : null;
-}
+};
+
+
+/**
+ * Given an array of tags from GitHub, and a string representing the target
+ * version, returns the name of the latest version.
+ *
+ * @param {!Array.<!Object.<string, string>>} versions
+ * @param {string} targetVersion
+ * @return {string}
+ *
+ * @examples
+ * deft.findLatestVersion([{ name: '0.5.0' }, { name: '0.10.0' }], '0.8.0');
+ * // => '0.10.0'
+ *
+ * deft.findLatestVersion([{ name: '1.0.0' }, { name: '1.0.1' }], 'invalid');
+ * // => 'invalid'
+ */
+deft.findLatestVersion = function findLatestVersion(versions, targetVersion) {
+  if (!semver.valid(targetVersion))
+    return targetVersion;
+
+  return versions.reduce(function(latest, current) {
+    if (!semver.valid(current.name)) return latest;
+    return semver.compare(current.name, latest) > 0 ? current.name : latest;
+  }, targetVersion);
+};
+
 
 /**
  * Clips a file name to 40 characters or less.

@@ -8,7 +8,6 @@ var fs        = require('fs'),
     exec      = require('child_process').exec,
     mkdirp    = require('mkdirp'),
     rimraf    = require('rimraf'),
-    semver    = require('semver'),
     stync     = require('stync'),
     deft      = require('../deft'),
     deftInfo  = parseFile('../package.json');
@@ -239,11 +238,7 @@ function checkUpToDate(dependency, callback) {
       return callback(false);
     }
 
-    var latestVersion = body.reduce(function(latest, current) {
-      if (!semver.valid(current.name)) return latest;
-      return semver.compare(current.name, latest) > 0 ? current.name : latest;
-    }, tag);
-
+    var latestVersion = deft.findLatestVersion(body, tag);
     if (latestVersion !== tag) {
       message.end('\x1B[33m newer version available: "' + latestVersion + '" (current "' + tag + '")\x1B[39m');
       return callback(false);
