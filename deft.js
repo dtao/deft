@@ -49,6 +49,14 @@ deft.getFiles = function getFiles(files) {
     return deft.filesFromArray(files);
   }
 
+  Object.keys(files).forEach(function(key) {
+    var normalizedKey = path.normalize(key);
+    if (key !== normalizedKey) {
+      files[normalizedKey] = files[key];
+      delete files[key];
+    }
+  });
+
   return files;
 };
 
@@ -65,7 +73,7 @@ deft.getFiles = function getFiles(files) {
  */
 deft.filesFromString = function filesFromString(string) {
   var object = {};
-  object[string] = path.basename(string);
+  object[path.normalize(string)] = path.basename(string);
   return object;
 };
 
@@ -84,7 +92,7 @@ deft.filesFromString = function filesFromString(string) {
 deft.filesFromArray = function filesFromArray(array) {
   var object = {};
   for (var i = 0; i < array.length; ++i) {
-    object[array[i]] = path.basename(array[i]);
+    object[path.normalize(array[i])] = path.basename(array[i]);
   }
   return object;
 };
@@ -127,10 +135,10 @@ deft.getUrl = function getUrl(file, dependency) {
 
 /**
  * Given a dependency, gets the Github API url to list tags of the project.
- * 
+ *
  * @param {!Array.<string>} dependency
  * @return {string}
- * 
+ *
  * @examples
  * deft.getTagsUrl(['lodash/lodash', 'lodash.js']);
  * // => 'https://api.github.com/repos/lodash/lodash/tags'
@@ -153,10 +161,10 @@ deft.getTagsUrl = function getTagsUrl(dependency) {
 
 /**
  * Given a dependency, gets the tag specified by the configuration.
- * 
+ *
  * @param {!Array.<string>} dependency
  * @return {string}
- * 
+ *
  * @examples
  * deft.getWantedTag(['lodash/lodash', 'lodash.js']);
  * // => undefined

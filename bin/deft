@@ -76,7 +76,9 @@ function writeFile(filePath, response, callback) {
 }
 
 function copyFile(source, destination) {
-  fs.createReadStream(source).pipe(fs.createWriteStream(destination));
+  // Ensure destination directory exists
+  mkdirp.sync(path.dirname(destination));
+  return fs.createReadStream(source).pipe(fs.createWriteStream(destination));
 }
 
 function randomNumber() {
@@ -127,13 +129,6 @@ function describesArchive(files) {
   return keys.length === 1 && keys[0] === 'archive' && typeof files.archive === 'object';
 }
 
-function extractCommand(fileType) {
-  switch (fileType) {
-    case 'zip': return 'unzip';
-    default: throw 'Unrecognized file type: ' + fileType;
-  }
-}
-
 function downloadArchive(dependency, callback) {
   var archive    = deft.getFilesFromDependency(dependency).archive,
       url        = dependency[0],
@@ -157,29 +152,36 @@ function downloadArchive(dependency, callback) {
   response.on('end', function() {
     message.write(' extracting file...');
 
-    var command = [
-      extractCommand(type),
-      fileName,
-      Object.keys(files).join(' '),
-      '-d ' + tempDir
-    ].join(' ');
+    switch (type) {
+      case 'zip':
+        var DecompressZip = require('decompress-zip');
+        var unzipper = new DecompressZip(fileName);
+        unzipper.on('error', callback);
+        unzipper.on('extract', function() {
+          message.end(' Done.');
+          moveFiles();
+        });
+        unzipper.extract({
+          path: tempDir,
+          filter: function(file) {
+            return file.path in files;
+          }
+        });
+        break;
+      default:
+        throw 'Unrecognized file type: ' + type;
+    }
 
-    exec(command, function(err) {
-      if (err) {
-        return callback(err);
-      }
-
-      message.end(' Done.');
-
+    function moveFiles() {
       waitForDirToExist(tempDir, function() {
-        for (var file in files) {
+        async.each(Object.keys(files), function(file, cb) {
           stync.write('Copying ' + file + '...');
-          copyFile(path.join(tempDir, file), getDestinationPath(files[file]));
-        }
-
-        callback();
+          copyFile(path.join(tempDir, file), getDestinationPath(files[file]))
+            .on('error', cb)
+            .on('finish', cb);
+        }, callback);
       });
-    });
+    }
   });
 }
 
@@ -270,17 +272,17 @@ if (commander.outdated) {
       }
     });
   }
-  
+
   if (archives.length > 0) {
     async.eachSeries(archives, downloadArchive, function(err) {
       if (err) {
         console.log('Encountered an error: ' + err);
       }
-  
+
       if (tempFiles.length === 0 && tempDirs.length === 0) {
         return;
       }
-  
+
       var message = stync.begin('Cleaning up archive downloads...');
       tempFiles.forEach(function(file) { fs.unlinkSync(file); });
       tempDirs.forEach(function(dir) { rimraf.sync(dir); });
