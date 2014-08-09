@@ -239,13 +239,13 @@ function checkUpToDate(dependency, callback) {
       return callback(false);
     }
 
-    var versions = body
-      .map(function (version) { return version.name; })
-      .filter(semver.valid)
-      .sort(semver.rcompare);
+    var latestVersion = body.reduce(function(latest, current) {
+      if (!semver.valid(current.name)) return latest;
+      return semver.compare(current.name, latest) > 0 ? current.name : latest;
+    }, tag);
 
-    if (versions[0] !== tag) {
-      message.end('\x1B[33m newer version available: "' + versions[0] + '" (current "' + tag + '")\x1B[39m');
+    if (latestVersion !== tag) {
+      message.end('\x1B[33m newer version available: "' + latestVersion + '" (current "' + tag + '")\x1B[39m');
       return callback(false);
     }
 
