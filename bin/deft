@@ -66,9 +66,12 @@ function shouldOverwrite(filePath) {
   return commander.force;
 }
 
+function ensureDirectoryExists(path) {
+  mkdirp.sync(path.dirname(path));
+}
+
 function writeFile(filePath, response, callback) {
-  // Ensure destination directory exists
-  mkdirp.sync(path.dirname(filePath));
+  ensureDirectoryExists(filePath);
 
   var stream = fs.createWriteStream(filePath);
   response.pipe(stream);
@@ -76,8 +79,7 @@ function writeFile(filePath, response, callback) {
 }
 
 function copyFile(source, destination) {
-  // Ensure destination directory exists
-  mkdirp.sync(path.dirname(destination));
+  ensureDirectoryExists(destination);
   return fs.createReadStream(source).pipe(fs.createWriteStream(destination));
 }
 
