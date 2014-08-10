@@ -49,15 +49,7 @@ deft.getFiles = function getFiles(files) {
     return deft.filesFromArray(files);
   }
 
-  Object.keys(files).forEach(function(key) {
-    var normalizedKey = path.normalize(key);
-    if (key !== normalizedKey) {
-      files[normalizedKey] = files[key];
-      delete files[key];
-    }
-  });
-
-  return files;
+  return deft.normalizeFilePaths(files);
 };
 
 
@@ -73,8 +65,8 @@ deft.getFiles = function getFiles(files) {
  */
 deft.filesFromString = function filesFromString(string) {
   var object = {};
-  object[path.normalize(string)] = path.basename(string);
-  return object;
+  object[string] = path.basename(string);
+  return deft.normalizeFilePaths(object);
 };
 
 
@@ -92,9 +84,25 @@ deft.filesFromString = function filesFromString(string) {
 deft.filesFromArray = function filesFromArray(array) {
   var object = {};
   for (var i = 0; i < array.length; ++i) {
-    object[path.normalize(array[i])] = path.basename(array[i]);
+    object[array[i]] = path.basename(array[i]);
   }
-  return object;
+  return deft.normalizeFilePaths(object);
+};
+
+
+/**
+ * Ensures the keys in a source-to-destination-file mapping object are
+ * normalized for the current platform.
+ *
+ * @param {!Object.<string, string>}
+ * @return {!Object.<string, string>}
+ */
+deft.normalizeFilePaths = function(files) {
+  var normalized = {};
+  for (var key in files) {
+    normalized[path.normalize(key)] = files[key];
+  }
+  return normalized;
 };
 
 
