@@ -1,16 +1,17 @@
 #!/usr/bin/env node
 
-var fs        = require('fs'),
-    path      = require('path'),
-    request   = require('request'),
-    async     = require('async'),
-    commander = require('commander'),
-    exec      = require('child_process').exec,
-    mkdirp    = require('mkdirp'),
-    rimraf    = require('rimraf'),
-    stync     = require('stync'),
-    deft      = require('../deft'),
-    deftInfo  = parseFile('../package.json');
+var fs            = require('fs'),
+    path          = require('path'),
+    request       = require('request'),
+    async         = require('async'),
+    commander     = require('commander'),
+    exec          = require('child_process').exec,
+    mkdirp        = require('mkdirp'),
+    rimraf        = require('rimraf'),
+    stync         = require('stync'),
+    deft          = require('../deft'),
+    DecompressZip = require('decompress-zip'),
+    deftInfo      = parseFile('../package.json');
 
 function readFile(filePath, basePath) {
   basePath = basePath || __dirname;
@@ -159,33 +160,39 @@ function downloadArchive(dependency, callback) {
 
     switch (type) {
       case 'zip':
-        var DecompressZip = require('decompress-zip');
-        var unzipper = new DecompressZip(fileName);
-        unzipper.on('error', callback);
-        unzipper.on('extract', function() {
-          message.end(' Done.');
-          moveFiles();
-        });
-        unzipper.extract({
-          path: tempDir,
-          filter: function(file) {
-            return file.path in files;
-          }
-        });
+        extractZipFile(callback);
         break;
+
       default:
         throw 'Unrecognized file type: ' + type;
     }
-
-    function moveFiles() {
-      waitForDirToExist(tempDir, function() {
-        async.each(Object.keys(files), function(file, cb) {
-          stync.write('Copying ' + file + '...');
-          copyFile(path.join(tempDir, file), getDestinationPath(files[file]), cb);
-        }, callback);
-      });
-    }
   });
+
+  function extractZipFile(callback) {
+    var unzipper = new DecompressZip(fileName);
+
+    unzipper.on('error', callback);
+    unzipper.on('extract', function() {
+      message.end(' Done.');
+      moveFiles(callback);
+    });
+
+    unzipper.extract({
+      path: tempDir,
+      filter: function(file) {
+        return file.path in files;
+      }
+    });
+  }
+
+  function moveFiles(callback) {
+    waitForDirToExist(tempDir, function() {
+      async.each(Object.keys(files), function(file, cb) {
+        stync.write('Copying ' + file + '...');
+        copyFile(path.join(tempDir, file), getDestinationPath(files[file]), cb);
+      }, callback);
+    });
+  }
 }
 
 function downloadDependency(dependency, callback) {
