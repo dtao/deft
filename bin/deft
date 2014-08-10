@@ -75,12 +75,15 @@ function writeFile(filePath, response, callback) {
 
   var stream = fs.createWriteStream(filePath);
   response.pipe(stream);
-  stream.on('finish', callback);
+  stream.on('error', callback).on('finish', callback);
 }
 
-function copyFile(source, destination) {
+function copyFile(source, destination, callback) {
   ensureDirectoryExists(destination);
-  return fs.createReadStream(source).pipe(fs.createWriteStream(destination));
+
+  var stream = fs.createWriteStream(destination);
+  fs.createReadStream(source).pipe(stream);
+  stream.on('error', callback).on('finish', callback);
 }
 
 function randomNumber() {
@@ -178,9 +181,7 @@ function downloadArchive(dependency, callback) {
       waitForDirToExist(tempDir, function() {
         async.each(Object.keys(files), function(file, cb) {
           stync.write('Copying ' + file + '...');
-          copyFile(path.join(tempDir, file), getDestinationPath(files[file]))
-            .on('error', cb)
-            .on('finish', cb);
+          copyFile(path.join(tempDir, file), getDestinationPath(files[file]), cb);
         }, callback);
       });
     }
