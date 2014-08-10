@@ -1,16 +1,17 @@
 #!/usr/bin/env node
 
-var fs        = require('fs'),
-    path      = require('path'),
-    request   = require('request'),
-    async     = require('async'),
-    commander = require('commander'),
-    exec      = require('child_process').exec,
-    mkdirp    = require('mkdirp'),
-    rimraf    = require('rimraf'),
-    stync     = require('stync'),
-    deft      = require('../deft'),
-    deftInfo  = parseFile('../package.json');
+var fs            = require('fs'),
+    path          = require('path'),
+    request       = require('request'),
+    async         = require('async'),
+    commander     = require('commander'),
+    exec          = require('child_process').exec,
+    mkdirp        = require('mkdirp'),
+    rimraf        = require('rimraf'),
+    stync         = require('stync'),
+    deft          = require('../deft'),
+    DecompressZip = require('decompress-zip'),
+    deftInfo      = parseFile('../package.json');
 
 function readFile(filePath, basePath) {
   basePath = basePath || __dirname;
@@ -66,17 +67,24 @@ function shouldOverwrite(filePath) {
   return commander.force;
 }
 
+function ensureDirectoryExists(path) {
+  mkdirp.sync(path.dirname(path));
+}
+
 function writeFile(filePath, response, callback) {
-  // Ensure destination directory exists
-  mkdirp.sync(path.dirname(filePath));
+  ensureDirectoryExists(filePath);
 
   var stream = fs.createWriteStream(filePath);
   response.pipe(stream);
-  stream.on('finish', callback);
+  stream.on('error', callback).on('finish', callback);
 }
 
-function copyFile(source, destination) {
-  fs.createReadStream(source).pipe(fs.createWriteStream(destination));
+function copyFile(source, destination, callback) {
+  ensureDirectoryExists(destination);
+
+  var stream = fs.createWriteStream(destination);
+  fs.createReadStream(source).pipe(stream);
+  stream.on('error', callback).on('finish', callback);
 }
 
 function randomNumber() {
@@ -127,13 +135,6 @@ function describesArchive(files) {
   return keys.length === 1 && keys[0] === 'archive' && typeof files.archive === 'object';
 }
 
-function extractCommand(fileType) {
-  switch (fileType) {
-    case 'zip': return 'unzip';
-    default: throw 'Unrecognized file type: ' + fileType;
-  }
-}
-
 function downloadArchive(dependency, callback) {
   var archive    = deft.getFilesFromDependency(dependency).archive,
       url        = dependency[0],
@@ -157,30 +158,41 @@ function downloadArchive(dependency, callback) {
   response.on('end', function() {
     message.write(' extracting file...');
 
-    var command = [
-      extractCommand(type),
-      fileName,
-      Object.keys(files).join(' '),
-      '-d ' + tempDir
-    ].join(' ');
+    switch (type) {
+      case 'zip':
+        extractZipFile(callback);
+        break;
 
-    exec(command, function(err) {
-      if (err) {
-        return callback(err);
-      }
-
-      message.end(' Done.');
-
-      waitForDirToExist(tempDir, function() {
-        for (var file in files) {
-          stync.write('Copying ' + file + '...');
-          copyFile(path.join(tempDir, file), getDestinationPath(files[file]));
-        }
-
-        callback();
-      });
-    });
+      default:
+        throw 'Unrecognized file type: ' + type;
+    }
   });
+
+  function extractZipFile(callback) {
+    var unzipper = new DecompressZip(fileName);
+
+    unzipper.on('error', callback);
+    unzipper.on('extract', function() {
+      message.end(' Done.');
+      moveFiles(callback);
+    });
+
+    unzipper.extract({
+      path: tempDir,
+      filter: function(file) {
+        return file.path in files;
+      }
+    });
+  }
+
+  function moveFiles(callback) {
+    waitForDirToExist(tempDir, function() {
+      async.each(Object.keys(files), function(file, cb) {
+        stync.write('Copying ' + file + '...');
+        copyFile(path.join(tempDir, file), getDestinationPath(files[file]), cb);
+      }, callback);
+    });
+  }
 }
 
 function downloadDependency(dependency, callback) {
@@ -270,17 +282,17 @@ if (commander.outdated) {
       }
     });
   }
-  
+
   if (archives.length > 0) {
     async.eachSeries(archives, downloadArchive, function(err) {
       if (err) {
         console.log('Encountered an error: ' + err);
       }
-  
+
       if (tempFiles.length === 0 && tempDirs.length === 0) {
         return;
       }
-  
+
       var message = stync.begin('Cleaning up archive downloads...');
       tempFiles.forEach(function(file) { fs.unlinkSync(file); });
       tempDirs.forEach(function(dir) { rimraf.sync(dir); });
