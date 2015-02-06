@@ -116,10 +116,10 @@ deft.normalizeFilePaths = function(files) {
  *
  * @examples
  * deft.getUrl('lodash.js', ['lodash/lodash', 'lodash.js']);
- * // => 'https://raw.githubusercontent.com/lodash/lodash/master/lodash.js'
+ * // => 'https://api.github.com/repos/lodash/lodash/contents/lodash.js?ref=master'
  *
  * deft.getUrl('underscore.js', ['jashkenas/underscore', '1.6.0', 'underscore.js']);
- * // => 'https://raw.githubusercontent.com/jashkenas/underscore/1.6.0/underscore.js'
+ * // => 'https://api.github.com/repos/jashkenas/underscore/contents/underscore.js?ref=1.6.0'
  *
  * deft.getUrl('underscore.js', ['http://cdnjs.com/libraries/', 'underscore.js']);
  * // => 'http://cdnjs.com/libraries/underscore.js'
@@ -137,7 +137,7 @@ deft.getUrl = function getUrl(file, dependency) {
   var name = dependency[0],
       tag  = dependency.length > 2 ? dependency[1] : 'master';
 
-  return 'https://raw.githubusercontent.com/' + name + '/' + tag + '/' + file;
+  return 'https://api.github.com/repos/' + name + '/contents/' + file + '?ref=' + tag;
 };
 
 

@@ -22,6 +22,26 @@ function parseFile(filePath, basePath) {
   return JSON.parse(readFile(filePath, basePath));
 }
 
+function createQuery(url) {
+  var query = {
+    url: url,
+    json: true,
+    headers: {
+      'User-Agent': 'Deft'
+    }
+  };
+
+  if (process.env.GITHUB_AUTH_TOKEN) {
+    query.auth = {
+      user: process.env.GITHUB_AUTH_TOKEN,
+      pass: 'x-oauth-basic',
+      sendImmediately: true
+    };
+  }
+
+  return query;
+}
+
 commander
   .version(deftInfo.version)
   .option('-c, --config-file <path>', 'specify a config file (defaults to deft.json)')
@@ -55,8 +75,8 @@ function getDestinationPath(fileName) {
   return path.join(process.cwd(), folder, fileName);
 }
 
-function pathExists(path) {
-  return (fs.existsSync || path.existsSync)(path);
+function pathExists(p) {
+  return (fs.existsSync || path.existsSync)(p);
 }
 
 function shouldOverwrite(filePath) {
@@ -67,16 +87,23 @@ function shouldOverwrite(filePath) {
   return commander.force;
 }
 
-function ensureDirectoryExists(path) {
-  mkdirp.sync(path.dirname(path));
+function ensureDirectoryExists(p) {
+  mkdirp.sync(path.dirname(p));
 }
 
 function writeFile(filePath, response, callback) {
   ensureDirectoryExists(filePath);
 
   var stream = fs.createWriteStream(filePath);
-  response.pipe(stream);
   stream.on('error', callback).on('finish', callback);
+
+  if (typeof response === 'string') {
+    stream.write(response, 'base64', function () {
+      stream.end();
+    });
+  } else {
+    response.pipe(stream);
+  }
 }
 
 function copyFile(source, destination, callback) {
@@ -198,27 +225,52 @@ function downloadArchive(dependency, callback) {
 function downloadDependency(dependency, callback) {
   var files = deft.getFiles(dependency[dependency.length - 1]);
 
-  var retrieveFile = function(file) {
-    var fileUrl         = deft.getUrl(file, dependency),
+  var download = function (file, source, target, callback) {
+    var message = stync.begin('Downloading ' + deft.clipFileName(file) + '...');
+    writeFile(target, source, function(err) {
+      message.end(' Done.');
+      callback(err);
+    });
+  };
+
+  var retrieveFile = function(file, callback) {
+    var url  = deft.getUrl(file, dependency),
         destinationPath = getDestinationPath(files[file]);
 
     if (shouldOverwrite(destinationPath)) {
-      var message = stync.begin('Downloading ' + deft.clipFileName(file) + '...');
-      writeFile(destinationPath, request(fileUrl), function() {
-        message.end(' Done.');
-      });
+      if (url.indexOf('https://api.github.com') === 0) {
+        request(createQuery(url), function (err, res, body) {
+          if (err) {
+            return callback(err);
+          }
 
+          if (res.statusCode !== 200) {
+            return callback(new Error(JSON.stringify(body)));
+          }
+
+          if (Array.isArray(body)) {
+            async.each(body, function(descriptor, callback) {
+              if (descriptor.type === 'dir' || descriptor.type === 'file') {
+                files[descriptor.path] = files[file] + descriptor.path.slice(file.length);
+                retrieveFile(descriptor.path, callback);
+              } else {
+                callback(new Error('Unhandled type of file for "' + descriptor.path + '": ' + descriptor.type));
+              }
+            }, callback);
+          } else {
+            download(file, body.content, destinationPath, callback);
+          }
+        });
+      } else {
+        download(file, request(url), destinationPath, callback);
+      }
     } else {
       stync.write(deft.clipFileName(file) + ' - already present');
     }
   };
 
   async.each(Object.keys(files), retrieveFile, function(err) {
-    if (err) {
-      return callback(err);
-    }
-
-    callback();
+    callback(err);
   });
 }
 
@@ -230,16 +282,8 @@ function checkUpToDate(dependency, callback) {
     return callback(true);
   }
 
-  var query = {
-    url: url,
-    json: true,
-    headers: {
-      'User-Agent': 'Deft'
-    }
-  };
-
   var message = stync.begin('Checking ' + dependency[0] + '...');
-  request(query, function(err, response, body) {
+  request(createQuery(url), function(err, response, body) {
     if (err) {
       message.end(err);
       return callback(false);
